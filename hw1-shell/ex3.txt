@@ -1,0 +1,24 @@
+ARP PACKET BY BYTES
+ ARP PACKET DETAILS
+  htype:	0x0001
+  ptype:	0x0800
+  hlen:		6
+  plen:		4
+  op:		1
+  spa:		137.140.50.6
+  sha:		00:40:05:56:4c:00
+  tpa:		137.140.50.7
+  tha		00:00:00:00:00:00
+ 
+ARP PACKET BY WORDS
+ ARP PACKET DETAILS
+  htype:	0x0001
+  ptype:	0x0800
+  hlen:		6
+  plen:		4
+  op:		1
+  spa:		137.140.50.6
+  sha:		00:40:05:56:4c:00
+  tpa:		137.140.7.50
+  tha		00:00:00:00:00:00
+ 

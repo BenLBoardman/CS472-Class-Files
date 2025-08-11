@@ -58,6 +58,8 @@ static u_int16_t ex3w[] = {0x0001, 0x0800, 0x0604, 0x0001, 0x0040,
                           0x0000, 0x0000, 0x898c, 0x3207 };
 
 
+void swap(uint8_t *, int, int);
+
 /*
  * compile with .... gcc decoder.c -o decoder
  */
@@ -65,28 +67,50 @@ int main(int argc, char *argv[]) {
     arp_ether_ipv4 arp;
     char           output_buff[256] = "< NOTHING IN HERE YET >";
 
-    bytesToArp(&arp, ex1b);
+    bytesToArp(&arp, ex3b);
     arp_toString(&arp, output_buff, sizeof(output_buff) );
     printf("ARP PACKET BY BYTES\n %s \n", output_buff);
 
-    wordsToArp(&arp, ex1w);
+    wordsToArp(&arp, ex3w);
     arp_toString(&arp, output_buff, sizeof(output_buff) );
-    printf("ARP PACKET BY BYTES\n %s \n", output_buff);
+    printf("ARP PACKET BY WORDS\n %s \n", output_buff);
 }
 
 static void bytesToArp(arp_ether_ipv4 *arp, u_int8_t *buff){
+    uint8_t *arp_asUints = arp;
+    memcpy(arp, buff, sizeof(arp_ether_ipv4));
+    //switch endianness for the first 8 bytes and then copy the rest
+    for(int i = 1; i < sizeof(uint16_t)*2; i += 2) {
+        swap(arp_asUints, i-1, i);
+    }
+    swap(arp_asUints, 6, 7); //flip endianness for opcode
+
     //This function accepts a pointer to a CHARACTER/BYTE buffer, in this case a byte buffer
     //It builds a arp_ether_ipv4 packet.  Notice a pointer to the structure
     //to copy the data into is passed as a pointer (e.g., *arp)
 }
 
 static void wordsToArp(arp_ether_ipv4 *arp, uint16_t *buff){
+    uint8_t *arp_asUints = arp;
+
+    memcpy(arp_asUints, buff, sizeof(arp_ether_ipv4));
+    swap(arp_asUints, 4, 5); //swap hlen and plen
+
+    for(int i = 9; i < sizeof(arp_ether_ipv4) - 1; i += 2) { //flip endianness for spa, sha, tpa, tha
+        swap(arp_asUints, i, i-1);
+    }
     //This function accepts a pointer to a WORD buffer, in this case a byte buffer
     //It builds a arp_ether_ipv4 packet.  Notice a pointer to the structure
     //to copy the data into is passed as a pointer (e.g., *arp)
 }
 
-
+void swap(uint8_t *uints, int a, int b) {
+    uint8_t temp;
+    
+    temp = uints[a];
+    uints[a] = uints[b];
+    uints[b] = temp;
+}
 
 
 /*
@@ -95,7 +119,7 @@ static void wordsToArp(arp_ether_ipv4 *arp, uint16_t *buff){
  * to with dstStr, and the length of the buffer is also passed in
  */
 void  arp_toString(arp_ether_ipv4 *ap, char *dstStr, int len) {
-
+    char spa[16], sha[18], tpa[16], tha[18];
     /*
     NOTE IN MY IMPLEMENTATION THE STRING I BUILT LOOKS LIKE THE BELOW
     YOU DONT EXACTLY NEED TO FORMAT YOUR OUTPUT THIS WAY BUT YOU SHOULD 
@@ -112,6 +136,21 @@ void  arp_toString(arp_ether_ipv4 *ap, char *dstStr, int len) {
      tpa:       192.168.1.1 
      tha:       aa:bb:cc:dd:ee:ff 
     */
+   mac_toStr(ap->sha, sha, 18);
+   mac_toStr(ap->tha, tha, 18);
+   ip_toStr(ap->spa, spa, 16);
+   ip_toStr(ap->tpa, tpa, 16);
+   snprintf(dstStr, len, "ARP PACKET DETAILS\n  htype:\t0x%04x\n  ptype:\t0x%04x\n  hlen:\t\t%d\n  plen:\t\t%d\n  op:\t\t%d\n  spa:\t\t%s\n  sha:\t\t%s\n  tpa:\t\t%s\n  tha\t\t%s\n", 
+        ap->htype,
+        ap->ptype,
+        ap->hlen,
+        ap->plen,
+        ap->op,
+        spa,
+        sha,
+        tpa,
+        tha
+    );
 }
 
 /* ------------------------------------------------------------------------------------*/

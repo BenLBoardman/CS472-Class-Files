@@ -1,0 +1,24 @@
+ARP PACKET BY BYTES
+ ARP PACKET DETAILS
+  htype:	0x0001
+  ptype:	0x0800
+  hlen:		6
+  plen:		4
+  op:		1
+  spa:		192.168.121.144
+  sha:		12:ba:34:98:56:76
+  tpa:		10.20.40.184
+  tha		a9:b8:c7:d6:e5:f4
+ 
+ARP PACKET BY WORDS
+ ARP PACKET DETAILS
+  htype:	0x0001
+  ptype:	0x0800
+  hlen:		6
+  plen:		4
+  op:		1
+  spa:		192.168.121.144
+  sha:		12:ba:34:98:56:76
+  tpa:		10.20.184.40
+  tha		a9:b8:c7:d6:e5:f4
+ 
