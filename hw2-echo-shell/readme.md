@@ -112,3 +112,18 @@ For this component of the assignment think about the above and provide a short w
 2. Could you reuse the Class Information Protocol as provided, or would you change it to support the Course Registration Protocol. 
 3. How would requests and responses be properly managed via the PDU?
 4. If you decided to extend the lower protocol, why did you make this decision vs putting the new functionality in the Course Registration Protocol. 
+
+
+This will need a back-and-forth conversation with multiple steps:
+1. the client needs to send the server a course, term, and academic year. 
+2. The server can look up this combination and tell the client if the course is offered in that term along with additional information about the course. The server also needs to supply a list of sections offered and their time slots and availability.
+3. The client must select a section from the given option and ask the server to register for it.
+4. If the section is available, the server will then register the student. Otherwise, the server should return that the section is full and ask if the client wishes to offer an override.
+5. The client may optionally request an override at this step.
+
+0
+For the most part, this can be done with the existing inffrastructure. The first step can use the existing class information protocol header with just a single change: having the client enter a term and academic year as a command-line arg. The second step can also use the existing protocol and header as a base. However, some changes would need to happen for this to work. For one, the buffer for data outside of the struct will need to be expanded. Let's replace it with a 512-byte block (and the full data buffer with a 1024-b block). Let's also fill it in with a new structure that I'm going to refer to as a *course_info_header_t*, which I'll define in cs472_proto.h after the #endif. This will contain 128 bytes each for an expanded description and prerequisites, as well as room for an array of compact structs to describe a section, including a number, type (eg lecture, lab, recitation, etc), days offered, start/end times, and total/open seats. These structs are fully described in cs472-proto.h. The client can take this information, select a course, and send the selection back as a message onto the end with the same header. From here, things can proceed more or less as described above with nothing attached to the headers.  
+
+However, this will also need several new cmds. We have room for 16, but we're not going to need to use all of them. We can get by with three. CMD_CLASS_REG gets sent by the client to initiate the process, and is returned by the server in step 2. The client responds in step 3 with CMD_SEL_SECT. The server then responds with CMD_REG_DONE (if registration was successful) or CMD_REG_FAIL (if registration fails). If the user decides to request an override, they respond with CMD_OVERRD_REQ in the last step.
+
+Not described here is the utility code that would need to be added to cs472-proto-c to enable parsing of section data, or a detailed desc. of the specific code that would need to be added.

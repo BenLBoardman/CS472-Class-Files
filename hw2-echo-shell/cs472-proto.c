@@ -29,13 +29,17 @@ uint16_t  prepare_req_packet(cs472_proto_header_t *header,
             uint8_t *payload, uint8_t pay_length, uint8_t *packet,
             uint16_t packet_len ){
 
+    uint8_t payload_backup[pay_length];
+
+    memcpy(payload_backup, payload, pay_length);
+
     uint16_t packet_sz = sizeof(cs472_proto_header_t) + pay_length;
     if ( packet_sz > packet_len)
         return -1;
     
     bzero(packet, packet_len);
     memcpy(packet, header, sizeof(cs472_proto_header_t));
-    memcpy(packet + sizeof(cs472_proto_header_t), payload, pay_length);
+    memcpy(packet + sizeof(cs472_proto_header_t), payload_backup, pay_length);
     header->len = packet_sz;
 
 
@@ -50,7 +54,7 @@ uint16_t  prepare_req_packet(cs472_proto_header_t *header,
 uint8_t  process_recv_packet(cs472_proto_header_t *header, 
             uint8_t *buffer, uint8_t **msg, uint8_t *msgLen ){
 
-    //memcpy(header, buffer, sizeof(cs472_proto_header_t));
+    memcpy(header, buffer, sizeof(cs472_proto_header_t));
     *msg = buffer + sizeof(cs472_proto_header_t);
     *msgLen = header->len - sizeof(cs472_proto_header_t);
     return *msgLen;

@@ -1,0 +1,6 @@
+/home/bb3244/cs472/CS472-Class-Files/build/CMakeFiles/client.dir
+/home/bb3244/cs472/CS472-Class-Files/build/CMakeFiles/server.dir
+/home/bb3244/cs472/CS472-Class-Files/build/CMakeFiles/server2.dir
+/home/bb3244/cs472/CS472-Class-Files/build/CMakeFiles/server3.dir
+/home/bb3244/cs472/CS472-Class-Files/build/CMakeFiles/edit_cache.dir
+/home/bb3244/cs472/CS472-Class-Files/build/CMakeFiles/rebuild_cache.dir

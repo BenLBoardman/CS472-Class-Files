@@ -50,8 +50,6 @@ course_item_t * lookup_course_by_id(char *course_id) {
  */
 static void process_requests(int listen_socket){
     cs472_proto_header_t header;
-    char msg_in_buffer[MAX_MSG_SIZE];
-    char msg_out_buffer[MAX_MSG_BUFFER];
     int data_socket;
     course_item_t *details;
     int ret;
@@ -62,8 +60,8 @@ static void process_requests(int listen_socket){
         //we are looping, lets not get the last request baggage
         //inside of this request
         memset(&header,0,sizeof(cs472_proto_header_t));
-        memset(msg_out_buffer,0,sizeof(msg_out_buffer));
-        memset(msg_in_buffer,0,sizeof(msg_in_buffer));
+        memset(send_buffer,0,BUFF_SZ);
+        memset(recv_buffer,0,BUFF_SZ);
 
         //Establish a connection
         data_socket = accept(listen_socket, NULL, NULL);
@@ -74,27 +72,17 @@ static void process_requests(int listen_socket){
 
         printf("\t RECEIVED REQ...\n");
 
-        /*
-         * TODO:  Handle the rest of the loop, basically you need to:
-         *
-         *      call recv() to get the request from the client
-         * 
-         *      Here is some helper code after you receive data from the client.  This
-         *      helps get setup to actually process the client request
-         * 
-         *      cs472_proto_header_t *pcktPointer =  (cs472_proto_header_t *)recv_buffer;
-         *      uint8_t *msgPointer = NULL;
-         *      uint8_t msgLen = 0;
-         *      process_recv_packet(pcktPointer, recv_buffer, &msgPointer, &msgLen);
-         * 
-         */
+        ret = recv(data_socket, recv_buffer, BUFF_SZ,0);
+        if (ret == -1) {
+            perror("error reading data from client");
+            exit(EXIT_FAILURE);
+        }
 
-        //TODO:  DELETE THESE VARIABLES BELOW...
-        //SEE THE COMMENT ABOVE, THESE VARIABLES ARE JUST PUT IN HERE FOR NOW TO MAKE SURE
-        //THE STUB COMPILES
-        cs472_proto_header_t *pcktPointer;
+
+        cs472_proto_header_t *pcktPointer =  (cs472_proto_header_t *)recv_buffer;
         uint8_t *msgPointer = NULL;
         uint8_t msgLen = 0;
+        process_recv_packet(pcktPointer, recv_buffer, &msgPointer, &msgLen);
 
         //Now lets setup to process the request and send a reply, create a copy of the header
         //also switch header direction
@@ -102,16 +90,16 @@ static void process_requests(int listen_socket){
         header.dir = DIR_RECV;
         switch(header.cmd){
             case CMD_CLASS_INFO:
-                // sprintf(msg_out_buffer, class_msg, header.course);
+                // sprintf(send_buffer, class_msg, header.course);
                 details = lookup_course_by_id(header.course);
                 prepare_req_packet(&header,(uint8_t *)details->description, 
                     strlen(details->description), send_buffer, sizeof(send_buffer));
                 break;
             case CMD_PING_PONG:
-                strcpy(msg_out_buffer,"PONG: ");
-                memcpy(msg_out_buffer + strlen(msg_out_buffer), msgPointer, msgLen);
-                prepare_req_packet(&header,(uint8_t *)msg_out_buffer, 
-                    strlen(msg_out_buffer), send_buffer, sizeof(send_buffer));
+                strcpy(send_buffer,"PONG: ");
+                memcpy(send_buffer + strlen(send_buffer), msgPointer, msgLen);
+                prepare_req_packet(&header,(uint8_t *)send_buffer, 
+                    strlen(send_buffer), send_buffer, sizeof(send_buffer));
                 break;
             default:
                 perror("invalid command");
@@ -119,11 +107,13 @@ static void process_requests(int listen_socket){
                 continue;
         }
 
-        /*
-         * TODO:  Now that we have processed things, send the response back to the 
-         *        client - hint - its in the send_buffer. also dont forget to close
-         *        the data_socket for the next request.
-         */       
+        ret = send(data_socket, send_buffer, BUFF_SZ, 0);
+        if (ret == -1) {
+            perror("error sending data to client");
+            exit(EXIT_FAILURE);
+        } 
+
+        close(data_socket);
     }
 }
 

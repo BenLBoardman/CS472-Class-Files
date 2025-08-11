@@ -1,0 +1,1 @@
+/usr/bin/gcc-10 -g CMakeFiles/server3.dir/server3.c.o -o server3 

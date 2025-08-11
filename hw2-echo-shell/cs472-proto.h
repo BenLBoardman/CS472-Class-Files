@@ -43,7 +43,8 @@ LEN    The length of the message that follows the header in bytes, up to
 
 #define SOCKET_NAME "/tmp/cs472-fun.sock"        //For Unix Sockets
 
-#define PORT_NUM        1080                     //Lets use port 1080 for TCP
+#define PORT_NUM        12345
+                        //1080                     //Lets use port 1080 for TCP
 #define NULL 0
 
 #define PROTO_CS_FUN    0x1
@@ -83,3 +84,47 @@ uint16_t  prepare_req_packet(cs472_proto_header_t *header,
 uint8_t  process_recv_packet(cs472_proto_header_t *header, 
             uint8_t *buffer, uint8_t **msg, uint8_t *msgLen );
 #endif
+
+/*
+* HYPOTHETICAL PROTOCOL EXTENSION CODE
+*
+* section types
+* #define SECTION_RECITATION 0x0
+* #define SECTION_LAB 0x1
+* #define SECTION_LECTURE 0x2
+* #define SECTION_LECLAB 0x3
+* 
+* idea would be to bitwise OR these together, giving all the days with class meetings
+* #define CLASS_MON 0b10000
+* #define CLASS_TUES 0b01000
+* #define CLASS_WEDS 0b00100
+* #define CLASS_THURS 0b00010
+* #define CLASS_FRI 0b00001
+* 
+* new commands
+* #define CMD_CLASS_REG 0x2
+* #define CMD_SEL_SECT 0x3
+* #define CMD_REG_DONE 0x4
+* #define CMD_REG_FAIL 0x5
+* #define CMD_OVERRD_REQ 0x6
+*
+* typedef struct course_section_t {
+*     uint64_t sec_num    : 8,
+*              sec_type   : 2,
+*              days       : 5,
+*              startTime  :10, //denote start and end time as a 16 bit number in minutes with 0000 being 8:00 am and 50400 being 10:00pm
+*              endTime    :10,
+*              capacity   :9,
+*              remaining  :9,
+*              pad        :10;
+*
+* } course_section_t;
+* 
+* typedef struct course_info_header_t {
+*     char desc[128];
+*     char prereqs[128];
+*     course_section_t sections[128];
+* } course_info_header_t;
+*/
+
+

@@ -1,0 +1,22 @@
+[
+{
+  "directory": "/home/bb3244/cs472/CS472-Class-Files/build",
+  "command": "/usr/bin/gcc-10   -g -o CMakeFiles/client.dir/client.c.o -c /home/bb3244/cs472/CS472-Class-Files/socket-tutorial/client.c",
+  "file": "/home/bb3244/cs472/CS472-Class-Files/socket-tutorial/client.c"
+},
+{
+  "directory": "/home/bb3244/cs472/CS472-Class-Files/build",
+  "command": "/usr/bin/gcc-10   -g -o CMakeFiles/server.dir/server.c.o -c /home/bb3244/cs472/CS472-Class-Files/socket-tutorial/server.c",
+  "file": "/home/bb3244/cs472/CS472-Class-Files/socket-tutorial/server.c"
+},
+{
+  "directory": "/home/bb3244/cs472/CS472-Class-Files/build",
+  "command": "/usr/bin/gcc-10   -g -o CMakeFiles/server2.dir/server2.c.o -c /home/bb3244/cs472/CS472-Class-Files/socket-tutorial/server2.c",
+  "file": "/home/bb3244/cs472/CS472-Class-Files/socket-tutorial/server2.c"
+},
+{
+  "directory": "/home/bb3244/cs472/CS472-Class-Files/build",
+  "command": "/usr/bin/gcc-10   -g -o CMakeFiles/server3.dir/server3.c.o -c /home/bb3244/cs472/CS472-Class-Files/socket-tutorial/server3.c",
+  "file": "/home/bb3244/cs472/CS472-Class-Files/socket-tutorial/server3.c"
+}
+]

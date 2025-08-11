@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <ctype.h>
 
 #include "http.h"
 
@@ -74,7 +75,15 @@ char *strnstr(const char *s, const char *find, size_t slen)
 	return ((char *)s);
 }
 
-
+//---------------------------------------------------------------------------------
+// This function performs all the necessary setup and overhead to connect to a host and open a socket for it.
+// In this capacity, it performs the following actions:
+//      1. Use gethostbyname() to get information about the host 
+//      2. Copy data from host information and the port number to a socket address struct
+//      3. Use socket() function to get a socket fd
+//      4. Connect() to the created fd so its actually ready to send data
+//  If any of these actions fail, the function will return a -1 value. If nothing fails, the socket fd will be returned.
+//--------------------------------------------------------------------------------
 int socket_connect(const char *host, uint16_t port){
     struct hostent *hp;
     struct sockaddr_in addr;
@@ -105,7 +114,13 @@ int socket_connect(const char *host, uint16_t port){
     return sock;
 }
 
-
+//---------------------------------------------------------------------------------
+// This function makes use of the facts that a HTTP header should be small enough to fit in a single buffer
+// and that a HTTP header will always end in the same way - two CRLFs (newlines). By using strnstr (length-limited substring),
+// this function gets a pointer to the end of the header and then finds the difference in memory address between the first 
+// character of the header and the first character of the header end (some neat pointer arithmetic). The function then adds the length
+// of the header end, and boom - there's the length of the header.
+//--------------------------------------------------------------------------------
 int get_http_header_len(char *http_buff, int http_buff_len){
     char *end_ptr;
     int header_len = 0;
@@ -121,7 +136,13 @@ int get_http_header_len(char *http_buff, int http_buff_len){
     return header_len;
 }
 
-
+//---------------------------------------------------------------------------------
+// A HTTP header should theoretically contain the length of its content somewhere in it, so by processing the whole header
+// you will at some point find the tag with the content length. This code goes line-by-line using the sscanf call to grab
+// exactly one line of text from the header and checks if the "Content-Length" header is a case-insensitive substring 
+// of that line. If it is, that line must be processed. Strchr finds the address to the byte before the value starts, and 
+// this can be easily incremented and converted to an int to return.
+//--------------------------------------------------------------------------------
 int get_http_content_len(char *http_buff, int http_header_len){
     char header_line[MAX_HEADER_LINE];
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 #define  BUFF_SZ 1024
 
@@ -33,29 +34,26 @@ void print_usage(char *exe_name){
 int process_request(const char *host, uint16_t port, char *resource){
     int sock;
     int total_bytes;
+    char snd_buf[BUFF_SZ];
+
+    memset(snd_buf, 0, BUFF_SZ);
 
     sock = socket_connect(host, port);
     if(sock < 0) return sock;
 
-    //---------------------------------------------------------------------------------
-    //TODO:   Implement Send/Receive loop for Connection:Closed
-    //
-    // 1. Generate the request - see the helper generate_cc_request
-    // 2. Send the request to the HTTP server, make sure the send size
-    //    matches the length of the generated request from generate_cc_request().
-    // 3. Loop and receive the response data from the server.  You must
-    //    loop, and you must save the data received inside of recv_buff.
-    // 4. Each interation through the loop print out the data you receive.
-    //    Note, the data will not be null terminated so be careful that
-    //    you use the size of the data returned to control how the data 
-    //    is printed.  Here is a format string that can help you out.
-    //  
-    //        printf("%.*s", bytes_recvd, recv_buff);
-    //
-    // 5. This function should return the total number of bytes received
-    //    from the server, so why you are looping around, make sure to
-    //    accumulate all of the data received and return this value. 
-    //---------------------------------------------------------------------------------
+    strncpy(snd_buf, generate_cc_request(host, port, resource), 512);
+    if(send(sock, snd_buf, BUFF_SZ, 0) == -1) {
+        perror("Send HTTP request failed.\n");
+        exit(1);
+    }
+    printf("Send request success!\n");
+
+    int bytesRecvd = 0;
+    do{
+        bytesRecvd = recv(sock, recv_buff, BUFF_SZ, 0);
+        total_bytes += bytesRecvd;
+        printf("%.*s", bytesRecvd, recv_buff);
+    } while(bytesRecvd == BUFF_SZ);
 
     close(sock);
     return total_bytes;
@@ -63,7 +61,7 @@ int process_request(const char *host, uint16_t port, char *resource){
 
 int main(int argc, char *argv[]){
     int sock;
-
+    struct timespec start, end, elapsed;
     const char *host = DEFAULT_HOST;
     uint16_t   port = DEFAULT_PORT;
     char       *resource = DEFAULT_PATH;
@@ -71,6 +69,10 @@ int main(int argc, char *argv[]){
 
     // Command line argument processing should be all setup, you should not need
     // to modify this code
+
+    if(clock_gettime(CLOCK_REALTIME, &start) == -1) {
+        perror("Get start time error\n");
+    }
     if(argc < 4){
         print_usage(argv[0]);
         //process the default request
@@ -91,4 +93,14 @@ int main(int argc, char *argv[]){
             process_request(host, port, resource);
         }
     }
+    if(clock_gettime(CLOCK_REALTIME, &end) == -1) {
+        perror("Get end time error\n");
+    }
+    elapsed.tv_sec = end.tv_sec - start.tv_sec;
+
+    if(end.tv_nsec < start.tv_nsec) {
+        elapsed.tv_sec++;
+        elapsed.tv_nsec = end.tv_nsec - start.tv_nsec + 1000000000;
+    }
+    printf("Task finished in %d seconds and %lld nanoseconds\n", elapsed.tv_sec, elapsed.tv_nsec);
 }

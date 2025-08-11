@@ -1,0 +1,28 @@
+# CC Timing:
+    8.9 sec
+    6.9 sec
+    4.1 sec
+    8.8 sec
+    3.1 sec
+    3.8 sec
+    4.1 sec
+    8.9 sec
+    9.8 sec
+    4.7 sec
+AVG: 6.3 sec
+
+# KA Timing
+    4.6 sec
+    7.9 sec
+    3.1 sec
+    6.8 sec
+    9.7 sec
+    7.8 sec
+    7.5 sec
+    5.1 sec
+    3.1 sec
+    1.1 sec
+AVG: 5.7 sec
+
+These differences are a lot less than what I expected - maybe the overhead of opening a new socket is less than I thought?
+I can see how it would add up over hundreds and hundreds of connections, but just three times may not be enough to display this fully.
