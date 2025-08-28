@@ -9,7 +9,7 @@
 #include "du-proto.h"
 
 
-#define BUFF_SZ 512
+#define BUFF_SZ 1024
 static char sbuffer[BUFF_SZ];
 static char rbuffer[BUFF_SZ];
 static char full_file_path[FNAME_SZ];
@@ -76,6 +76,7 @@ static int initParams(int argc, char *argv[], prog_config *cfg){
 int server_loop(dp_connp dpc, void *sBuff, void *rBuff, int sbuff_sz, int rbuff_sz){
     int rcvSz;
 
+
     FILE *f = fopen(full_file_path, "wb+");
     if(f == NULL){
         printf("ERROR:  Cannot open file %s\n", full_file_path);
@@ -85,6 +86,8 @@ int server_loop(dp_connp dpc, void *sBuff, void *rBuff, int sbuff_sz, int rbuff_
         perror("Expecting the protocol to be in connect state, but its not");
         exit(-1);
     }
+
+    char *wBuf = rBuff + sizeof(dp_ftp_pdu);
     //Loop until a disconnect is received, or error hapens
     while(1) {
 
@@ -95,19 +98,53 @@ int server_loop(dp_connp dpc, void *sBuff, void *rBuff, int sbuff_sz, int rbuff_
             printf("Client closed connection\n");
             return DP_CONNECTION_CLOSED;
         }
-        fwrite(rBuff, 1, rcvSz, f);
+
+        dp_ftp_pdu *inPdu = rBuff;
+        dp_ftp_pdu outPdu;
+        memcpy(&outPdu, inPdu, sizeof(dp_ftp_pdu));
+        outPdu.status = DP_FTP_RCVOK;
+
+        if(inPdu->status < 0) {
+            printf("Received error message from client, aborting transmission.\n");
+            exit(0);
+        } else if(inPdu->status == DP_FTP_SNDCLOSE) {
+            printf("Data transmission complete!\n");
+            break;
+        }
+
+        if(inPdu->bytesSent == 0 && inPdu->status == DP_FTP_SNDOK) {
+            fprintf(stderr, "DU FTP Error: Data transmission lacks data. Notifying sender and aborting.\n");
+            outPdu.status = DP_FTP_ERR_NO_DATA;
+        } else if(inPdu->bytesSent != (rcvSz - sizeof(dp_ftp_pdu))) {
+            fprintf(stderr, "DU FTP Error: Data size mismatch. Notifying sender and aborting.\n");
+            outPdu.status = DP_FTP_ERR_BAD_SIZE;
+        }
+
+        u_int16_t calc_checksum = checksum(wBuf, inPdu->bytesSent);
+        if(calc_checksum != inPdu->checksum) {
+            fprintf(stderr, "DU FTP Error: Checksums do not match, data corruption has occurred. Notifying sender and aborting.\n");
+            outPdu.status = DP_FTP_ERR_CHKSM_FAIL;
+        }
+
+
+        dpsend(dpc, &outPdu, sizeof(outPdu));
+
+        if(outPdu.status < 0) {
+            exit(-1);
+        }
+        fwrite(wBuf, 1, inPdu->bytesSent, f);
         rcvSz = rcvSz > 50 ? 50 : rcvSz;    //Just print the first 50 characters max
 
         printf("========================> \n%.*s\n========================> \n", 
-            rcvSz, (char *)rBuff);
+            rcvSz, (char *)wBuf);
     }
-
+    return 0;
 }
 
 
 
 void start_client(dp_connp dpc){
-    static char sBuff[500];
+    static char sBuff[BUFF_SZ];
 
     if(!dpc->isConnected) {
         printf("Client not connected\n");
@@ -116,6 +153,10 @@ void start_client(dp_connp dpc){
 
 
     FILE *f = fopen(full_file_path, "rb");
+
+    dp_ftp_pdu *ftpPdu = (dp_ftp_pdu *)sBuff;    
+    strncpy(ftpPdu->file_name, full_file_path, sizeof(ftpPdu->file_name));
+
     if(f == NULL){
         printf("ERROR:  Cannot open file %s\n", full_file_path);
         exit(-1);
@@ -125,10 +166,49 @@ void start_client(dp_connp dpc){
         exit(-1);
     }
 
-    int bytes = 0;
+    //get size of file
+    if(fseek(f, 0, SEEK_END) == -1) {
+        perror("Failed to seek to the end of the file");
+        exit(-1);
+    }
+    ftpPdu->file_size = ftell(f);
+    rewind(f);
 
-    while ((bytes = fread(sBuff, 1, sizeof(sBuff), f )) > 0)
-        dpsend(dpc, sBuff, bytes);
+    int bytes = 0, status;
+    char *rBuf = sBuff + sizeof(dp_ftp_pdu);
+    while ((bytes = fread(rBuf, 1, sizeof(sBuff)-sizeof(dp_ftp_pdu), f )) > 0) {
+        ftpPdu->bytesSent = bytes;
+        ftpPdu->status = DP_FTP_SNDOK;
+        ftpPdu->checksum = checksum(rBuf, bytes);
+
+        status = dpsend(dpc, sBuff, bytes+sizeof(dp_ftp_pdu));
+        ftpPdu->totlSnt += bytes;
+
+        
+
+        if(status < 0) { //send failed, attempt to inform server and exit
+            ftpPdu->status = status;
+            dpsend(dpc, ftpPdu, sizeof(dp_ftp_pdu));
+            exit(-1);
+        }
+
+        dp_ftp_pdu inPdu;
+        //get status from recipient
+        dprecv(dpc, &inPdu, sizeof(dp_ftp_pdu));
+        if(inPdu.status == DP_FTP_ERR_BAD_SIZE) {
+            printf("Receiver received incorrect data size, aborting transmission.\n");
+            exit(0);
+        } else if(inPdu.status == DP_FTP_ERR_NO_DATA) {
+            printf("Receiver received transmission missing data, aborting transmission.\n");
+            exit(0);
+        } else if(inPdu.status == DP_FTP_ERR_CHKSM_FAIL) {
+            printf("Receiver failed checksum matching, aborting transmission.\n");
+            exit(0);
+        } else if(inPdu.status < 0) {
+            printf("Data receipt failed, exiting.\n");
+            exit(0);
+        }
+    }
 
     fclose(f);
     dpdisconnect(dpc);
@@ -186,4 +266,17 @@ int main(int argc, char *argv[])
             printf("ERROR: Unknown Program Mode.  Mode set is %d\n", cmd);
             break;
     }
+}
+
+void printPdu(dp_ftp_pdu *pdu) {
+    printf("DP FTP TRANSMISSION:\n\tfile name:\t\t%s \n\tfile size:\t\t%d bytes\n\ttransmission status:\t%d\n", 
+        pdu->file_name, pdu->file_size, pdu->status);
+}
+
+u_int16_t checksum(char *buf, int bufSz) {
+    u_int16_t total = 0;
+    for(char *i = buf; (i-buf) < bufSz; i++){
+        total += *i;
+    }
+    return total;
 }

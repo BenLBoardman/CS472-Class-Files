@@ -9,6 +9,9 @@
 
 #include "du-proto.h"
 
+#define MAX(a, b) a > b ? a : b
+#define MIN(a, b) a < b ? a : b
+
 static char _dpBuffer[DP_MAX_DGRAM_SZ];
 static int  _debugMode = 1;
 
@@ -119,18 +122,23 @@ dp_connp dpClientInit(char *addr, int port) {
 
 
 int dprecv(dp_connp dp, void *buff, int buff_sz){
-
+    int totlRecv = 0;
     dp_pdu *inPdu;
-    int rcvLen = dprecvdgram(dp, _dpBuffer, sizeof(_dpBuffer));
+    do {
+        int rcvLen = dprecvdgram(dp, _dpBuffer, sizeof(_dpBuffer));
 
-    if(rcvLen == DP_CONNECTION_CLOSED)
-        return DP_CONNECTION_CLOSED;
+        if(rcvLen == DP_CONNECTION_CLOSED)
+            return DP_CONNECTION_CLOSED;
 
-    inPdu = (dp_pdu *)_dpBuffer;
-    if(rcvLen > sizeof(dp_pdu))
-        memcpy(buff, (_dpBuffer+sizeof(dp_pdu)), inPdu->dgram_sz);
+        inPdu = (dp_pdu *)_dpBuffer;
+        if(rcvLen > sizeof(dp_pdu)) {
+            memcpy(buff+totlRecv, (_dpBuffer+sizeof(dp_pdu)), inPdu->dgram_sz);
+            totlRecv += inPdu->dgram_sz;
+        }
+    } while(inPdu->dgram_sz == DP_MAX_BUFF_SZ && totlRecv < buff_sz);
+    
 
-    return inPdu->dgram_sz;
+    return totlRecv;
 }
 
 
@@ -245,16 +253,21 @@ static int dprecvraw(dp_connp dp, void *buff, int buff_sz){
 }
 
 int dpsend(dp_connp dp, void *sbuff, int sbuff_sz){
-
+    char dgrambuf[DP_MAX_BUFF_SZ];
+    int bytesRemaining = sbuff_sz;
+    int totlSnd = 0, sndSz;
 
     //For now, we will not be able to send larger than the biggest datagram
-    if(sbuff_sz > dpmaxdgram()) {
-        return DP_BUFF_UNDERSIZED;
+    while(bytesRemaining > 0) {
+        memset(dgrambuf, 0, sizeof(dgrambuf));
+        memcpy(dgrambuf, sbuff+totlSnd, MIN(bytesRemaining, DP_MAX_BUFF_SZ));
+        sndSz = dpsenddgram(dp, sbuff+totlSnd, MIN(bytesRemaining, DP_MAX_BUFF_SZ));
+        totlSnd += sndSz;
+        bytesRemaining -= sndSz;
     }
+    
 
-    int sndSz = dpsenddgram(dp, sbuff, sbuff_sz);
-
-    return sndSz;
+    return totlSnd;
 }
 
 static int dpsenddgram(dp_connp dp, void *sbuff, int sbuff_sz){
@@ -267,6 +280,7 @@ static int dpsenddgram(dp_connp dp, void *sbuff, int sbuff_sz){
 
     if(sbuff_sz > DP_MAX_BUFF_SZ)
         return DP_ERROR_GENERAL;
+    
 
     //Build the PDU and out buffer
     dp_pdu *outPdu = (dp_pdu *)_dpBuffer;
